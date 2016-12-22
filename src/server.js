@@ -1,31 +1,41 @@
+var pm2 = require('pm2');
 
-console.log("Starting eComm Widget Version Switcher");
+var MACHINE_NAME = 'hk1';
+var PRIVATE_KEY  = '9va5ikavuq1qmd6';   // Keymetrics Private key
+var PUBLIC_KEY   = '7sngvc5hla70qqr';   // Keymetrics Public  key
 
-const express = require('express')  
-const app = express()  
-const port = process.env.PORT || 1337;
-var arg = process.argv[2];
-const environment = process.env.ENVIRONMENT || arg;
+var instances = process.env.WEB_CONCURRENCY || -1; // Set by Heroku or -1 to scale to max cpu core -1
+var maxMemory = process.env.WEB_MEMORY      || 512;// " " "
 
-console.log("Environment:" + environment);
-
-app.get('/', (request, response) => {
-
-    response.writeHead(200, { 'Content-Type': 'text/plain' });
-    response.end('Welcome \n');  
-	
-})
-
-app.get('/questions', (request, response) => {
+pm2.connect(function() {
+  pm2.start({
+    script    : 'app.js',
+    name      : 'api-test-app',     // ----> THESE ATTRIBUTES ARE OPTIONAL:
+    exec_mode : 'cluster',            // ----> https://github.com/Unitech/PM2/blob/master/ADVANCED_README.md#schema
+    instances : instances,
+    max_memory_restart : maxMemory + 'M',   // Auto restart if process taking more than XXmo
+    env: {                            // If needed declare some environment variables
+      "NODE_ENV": "production",
+      "AWESOME_SERVICE_API_TOKEN": "xxx"
+    },
+    post_update: ["npm install"]       // Commands to execute once we do a pull from Keymetrics
+  }, function() {
+    pm2.interact(PRIVATE_KEY, PUBLIC_KEY, MACHINE_NAME, function() {
     
-    response.writeHead(200, { 'Content-Type': 'text/plain' });
-    response.end('Question Text\n');    
-})
-
-app.listen(port, (err) => {  
-  if (err) {
-    return console.log('something bad happened', err)
-  }
-
-  console.log(`server is listening on ${port}`)
-})
+     // Display logs in standard output 
+     pm2.launchBus(function(err, bus) {
+       console.log('[PM2] Log streaming started');
+ 
+       bus.on('log:out', function(packet) {
+        console.log('[App:%s] %s', packet.process.name, packet.data);
+       });
+        
+       bus.on('log:err', function(packet) {
+         console.error('[App:%s][Err] %s', packet.process.name, packet.data);
+       });
+      });
+    
+    
+    });
+  });
+});

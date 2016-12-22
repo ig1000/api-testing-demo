@@ -6,9 +6,10 @@
   "scripts": {
     "start": "node server.js"
   },
-  "author": "",  
+  "author": "",
   "dependencies": {
     "express": "^4.14.0",
-    "httpdispatcher": "^1.0.0"
+    "httpdispatcher": "^1.0.0",
+    "pm2": "^2.2.2"
   }
 }
